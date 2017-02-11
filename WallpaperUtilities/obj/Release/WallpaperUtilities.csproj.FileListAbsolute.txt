@@ -5,3 +5,10 @@ D:\Programming\Projects\Scripts\Powershell\WallpaperUtilities\WallpaperUtilities
 D:\Programming\Projects\Scripts\Powershell\WallpaperUtilities\WallpaperUtilities\obj\Release\WallpaperUtilities.exe
 D:\Programming\Projects\Scripts\Powershell\WallpaperUtilities\WallpaperUtilities\obj\Release\WallpaperUtilities.pdb
 D:\Programming\Projects\Scripts\Powershell\WallpaperUtilities\WallpaperUtilities\bin\Release\ScheduleWallpaperChange.ps1
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Release\ScheduledWallpaperSave.ps1
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Release\ScheduleWallpaperChange.ps1
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Release\WallpaperUtilities.exe.config
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Release\WallpaperUtilities.exe
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Release\WallpaperUtilities.pdb
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\Release\WallpaperUtilities.exe
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\Release\WallpaperUtilities.pdb

@@ -1,10 +1,13 @@
 param (
-    [Parameter(Position = 1, HelpMessage = "Choice or latest or random Spotlight wallpaper")]
+    [Parameter(Position = 1, HelpMessage = "Choice of latest or random Spotlight wallpaper")]
     [bool]
     $latest=$false,
     [Parameter(Position = 2, HelpMessage = "Daily time schedule")]
     [Datetime]
-    $time=(Get-Date 8pm)
+    $time=(Get-Date 8pm),
+    [Parameter(Position = 3, HelpMessage = "Synchronize Desktop and Lockscreen Backgrounds?")]
+    [bool]
+    $syncWPs=$false
 )
 
 function Unregister-ExistingTask($task_name)
@@ -36,13 +39,9 @@ if($latest)
 
     Unregister-ExistingTask($task_name)
 
-    $action1 = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-slw'
-
-    $trigger1 = @()
-    $trigger1 += New-ScheduledTaskTrigger -Daily -At $time
-    $trigger1 += New-ScheduledTaskTrigger -AtLogOn
-
-    Register-ScheduledTask -Action $action1 -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to latest Spotlight"
+    $action = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-slw'
+    
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to latest Spotlight"
 }
 else
 {
@@ -50,9 +49,19 @@ else
     
     Unregister-ExistingTask($task_name)    
 
-    $action2 = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-srw'
+    $action = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-srw'
 
-    Register-ScheduledTask -Action $action2 -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to random Spotlight"
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to random Spotlight"
+}
+if($syncWPs)
+{
+    $task_name = "Sync Wallpaper"
+    
+    Unregister-ExistingTask($task_name)    
+
+    $action = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-cw --desktop'
+
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Synchronizes desktop and lockscreen wallpapers"
 }
 
 Write-Host "Scheduled task for $task_name registered."

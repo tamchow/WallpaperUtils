@@ -146,6 +146,7 @@ namespace WallpaperUtilities
 
                     utilities = new SpotlightUtilities(loadPath);
                     SaveSpotlightImages(loadPath);
+                    loadPath = utilities._spotlightBase;
                     
                     deletePath = true;
                 }
@@ -170,6 +171,7 @@ namespace WallpaperUtilities
                 if (!deletePath) return;
                 try
                 {
+                    Console.WriteLine("Deleting temporary files.\n");
                     Directory.Delete(loadPath, true);
                 }
                 catch (IOException)

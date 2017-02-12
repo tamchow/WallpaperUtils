@@ -14,9 +14,12 @@ function Unregister-ExistingTask($task_name)
 {
     try
     {
-        if((Get-ScheduledTask -TaskName $task_name) -ne $null)
+        $tasks = (Get-ScheduledTask | Where-Object {$_.TaskName -like $task_name})
+        if(($tasks -ne $null))
         {
-            Unregister-ScheduledTask -TaskName $task_name -Confirm:$false
+            foreach($task in $tasks){
+                Unregister-ScheduledTask -TaskName $task_name -Confirm:$false
+            }
         }
     }
     catch{
@@ -25,6 +28,8 @@ function Unregister-ExistingTask($task_name)
 }
 
 Write-Host "Time = $time"
+
+$app_name = "$(Resolve-Path './WallpaperUtilities.exe')"
 
 $task_name = ""
 
@@ -39,7 +44,7 @@ if($latest)
 
     Unregister-ExistingTask($task_name)
 
-    $action = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-slw'
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-slw'
     
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to latest Spotlight"
 }
@@ -49,7 +54,7 @@ else
     
     Unregister-ExistingTask($task_name)    
 
-    $action = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-srw'
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-srw'
 
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to random Spotlight"
 }
@@ -59,7 +64,7 @@ if($syncWPs)
     
     Unregister-ExistingTask($task_name)    
 
-    $action = New-ScheduledTaskAction -Execute './WallpaperUtilities.exe' -Argument '-cw --desktop'
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-cw --desktop'
 
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Synchronizes desktop and lockscreen wallpapers"
 }

@@ -47,7 +47,7 @@ namespace WallpaperUtilities
                                     select onlyName ? new FileInfo(file).Name : file);
             }
             return new HashSet<string>(savedFiles).ToList();//eliminate duplicates
-        } 
+        }
         public static void SaveSpotlightImages(string savePath = null, int threshold = 100)
         {
             try
@@ -79,7 +79,8 @@ namespace WallpaperUtilities
                         Console.WriteLine($"File {fileInfo.Name} of size {fileInfo.Length/1024} KB < {utilities._threshold} KB skipped.\n");
                         continue;
                     }
-                    if (savedFiles.Select(savedFile => savedFile.Contains(fileInfo.Name)).Any())
+                    
+                    if (savedFiles.Any(savedFile => new FileInfo(savedFile).Name.Contains(fileInfo.Name)))
                     {
                         Console.WriteLine($"Existing File {fileInfo.Name} skipped.\n");
                         continue;

@@ -35,7 +35,7 @@ $task_name = ""
 
 $trigger = @()
 $trigger += New-ScheduledTaskTrigger -Daily -At $time
-$trigger += New-ScheduledTaskTrigger -AtLogon
+$trigger += New-ScheduledTaskTrigger -AtLogon -User "$(whoami)"
 
 if($latest)
 {

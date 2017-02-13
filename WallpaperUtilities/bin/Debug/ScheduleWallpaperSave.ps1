@@ -28,7 +28,7 @@ Write-Host "Time = $time"
 
 $trigger = @()
 $trigger += New-ScheduledTaskTrigger -Daily -At $time
-$trigger += New-ScheduledTaskTrigger -AtLogon
+$trigger += New-ScheduledTaskTrigger -AtLogon -User "$(whoami)"
 
 $task_name = "Save Spotlight Wallpapers"
 

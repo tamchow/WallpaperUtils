@@ -58,10 +58,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="ScheduledWallpaperSave.ps1">
+    <None Include="ScheduleWallpaperChange.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="ScheduleWallpaperChange.ps1">
+    <None Include="ScheduleWallpaperSave.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

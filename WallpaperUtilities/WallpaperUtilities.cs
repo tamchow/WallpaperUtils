@@ -1,8 +1,12 @@
-﻿using System;
+﻿#define MANUAL
+using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
@@ -53,7 +57,7 @@ namespace WallpaperUtilities
             }
             return pathWallpaper;
         }
-        public static void SetLockScreenWallpaper(string path)
+        public static async void SetLockScreenWallpaper(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -62,6 +66,7 @@ namespace WallpaperUtilities
             else
             {
                 //This doesn't work - alternative involves group policy (only for Enterprise+ SKUs) or UWP, which I cannot work with.
+#if NORMAL
                 using (var regKey = Registry.CurrentUser.OpenSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Lock Screen\Creative", true))
                 {
@@ -77,6 +82,8 @@ namespace WallpaperUtilities
                             "Cannot set lock screen wallpaper - required registry key does not exist.");
                     }
                 }
+#endif
+#if GPO
                 //GPO version
                 using (var regKey = Registry.LocalMachine.CreateSubKey(
                     @"Software\Policies\Microsoft\Windows\Personalization"))
@@ -92,6 +99,41 @@ namespace WallpaperUtilities
                             "Cannot set lock screen wallpaper - required registry key does not exist.");
                     }
                 }
+                Process.Start("gpupdate /force");
+#endif
+#if MANUAL
+                //Manual mode - Launch settings and ask user to change the lockscreen image
+                Console.WriteLine("Manual mode - please follow the instructions:");
+                Console.WriteLine("Opening Settings app to lockscreen page...");
+                Console.WriteLine("Please set lockscreen type to \"Picture\".");
+                Console.WriteLine("Choose \"Browse\" and enter the following path in the \"File Name:\" field:");
+                Console.WriteLine(path);
+                Process.Start("ms-settings:lockscreen");
+#endif
+#if UWP_HELPER
+    //UWP version - Sends the image data over a TCP socket (only way to send that much data into a UWP app from a Windows app)
+                var tcpServerListener = new TcpListener(IPAddress.Loopback, 4444);
+                tcpServerListener.Start(); //start server
+                Console.WriteLine("Server Started.");
+                Process.Start("lsbg:4444");
+                Console.WriteLine("Started helper app.");
+                //block tcplistener to accept incoming connection
+                Socket serverSocket;
+                do
+                {
+                    serverSocket = tcpServerListener.AcceptSocket();
+                } 
+                while(!serverSocket.Connected);
+                Console.WriteLine("Client connected.");
+                //open network stream on accepted socket
+                using (var serverSockStream = new NetworkStream(serverSocket))
+                using (var serverStreamWriter = new StreamWriter(serverSockStream))
+                using (var fileReader = new FileStream(path, FileMode.Open))
+                {
+                    await fileReader.CopyToAsync(serverStreamWriter.BaseStream);
+                }
+                Console.WriteLine("Data copied to network stream.");
+#endif
             }
         }
         public static void SetLockScreenWallpaperAsDesktopWallpaper()

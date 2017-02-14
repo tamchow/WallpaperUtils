@@ -58,8 +58,8 @@ D:\Programming\Projects\Scripts\Powershell\WallpaperUtilities\WallpaperUtilities
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Debug\WallpaperUtilities.exe.config
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\Debug\WallpaperUtilities.exe
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\Debug\WallpaperUtilities.pdb
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Debug\ScheduledWallpaperSave.ps1
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Debug\ScheduleWallpaperChange.ps1
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Debug\WallpaperUtilities.exe
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Debug\WallpaperUtilities.pdb
 D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\Debug\WallpaperUtilities.csprojResolveAssemblyReference.cache
+D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\Debug\ScheduleWallpaperSave.ps1

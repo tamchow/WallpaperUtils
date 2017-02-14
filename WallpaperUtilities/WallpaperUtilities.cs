@@ -1,13 +1,16 @@
-﻿#define MANUAL
+﻿#define INTERMEDIATE_FOLDER
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Microsoft.Win32;
 
 namespace WallpaperUtilities
@@ -57,7 +60,11 @@ namespace WallpaperUtilities
             }
             return pathWallpaper;
         }
-        public static async void SetLockScreenWallpaper(string path)
+        /// <summary>
+        /// Sets the lockscreen wallpaper to the image file denoted by the parameter path.
+        /// </summary>
+        /// <param name="path">the path to the image file to set as the lockscreen wallpaper</param>
+        public static void SetLockScreenWallpaper(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -65,8 +72,8 @@ namespace WallpaperUtilities
             }
             else
             {
-                //This doesn't work - alternative involves group policy (only for Enterprise+ SKUs) or UWP, which I cannot work with.
 #if NORMAL
+                //This doesn't work - alternative involves group policy (only for Enterprise+ SKUs) or UWP, which I cannot work with.
                 using (var regKey = Registry.CurrentUser.OpenSubKey(
                     @"SOFTWARE\Microsoft\Windows\CurrentVersion\Lock Screen\Creative", true))
                 {
@@ -84,7 +91,7 @@ namespace WallpaperUtilities
                 }
 #endif
 #if GPO
-                //GPO version
+    //GPO version
                 using (var regKey = Registry.LocalMachine.CreateSubKey(
                     @"Software\Policies\Microsoft\Windows\Personalization"))
                 {
@@ -102,7 +109,7 @@ namespace WallpaperUtilities
                 Process.Start("gpupdate /force");
 #endif
 #if MANUAL
-                //Manual mode - Launch settings and ask user to change the lockscreen image
+    //Manual mode - Launch settings and ask user to change the lockscreen image
                 Console.WriteLine("Manual mode - please follow the instructions:");
                 Console.WriteLine("Opening Settings app to lockscreen page...");
                 Console.WriteLine("Please set lockscreen type to \"Picture\".");
@@ -132,10 +139,34 @@ namespace WallpaperUtilities
                 {
                     await fileReader.CopyToAsync(serverStreamWriter.BaseStream);
                 }
-                Console.WriteLine("Data copied to network stream.");
+                Console.WriteLine("Data copied to network stream.");a
+#endif
+#if INTERMEDIATE_FOLDER
+                var intermediateFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                var intermediateName = $"{Guid.NewGuid()}_{new FileInfo(path).Name}";
+                var intermediateFile = $"{intermediateFolder}\\{intermediateName}";
+                File.Copy(path, intermediateFile, true);
+                //block until file has been copied
+                while (!Directory.EnumerateFiles(intermediateFolder).Contains(intermediateFile))
+                {
+                    Thread.Sleep(10);
+                }
+                Console.WriteLine($"File {new FileInfo(path).Name} has been written to the intermediate folder as {intermediateName}.");
+                Console.WriteLine("Starting helper app...");
+                Process.Start($"lsbg:{intermediateName}");
+                Console.WriteLine("Helper app started...");
+                var completedActionIndicator = $"{intermediateFile}{CompletedExtension}";
+                while (!Directory.EnumerateFiles(intermediateFolder).Contains(completedActionIndicator))
+                {
+                    Thread.Sleep(10);
+                }
+                File.Delete(completedActionIndicator);
+                Console.WriteLine("Lockscreen background has been set, intermediate file deleted.");
 #endif
             }
         }
+
+        private const string CompletedExtension = ".done";
         public static void SetLockScreenWallpaperAsDesktopWallpaper()
         {
             SetDesktopWallpaper(GetCurrentLockScreenWallpaperPath());
@@ -235,12 +266,12 @@ namespace WallpaperUtilities
                     case "-d":
                     case "--desktop":
                         SetDesktopWallpaper(args[1], (args.Length > 2) ? (Style)int.Parse(args[2]) : Style.Stretched);
-                        Console.WriteLine($"Desktop Wallpaper was changed to {args[1]}");
+                        Console.WriteLine($"Desktop Wallpaper was changed. {args[1]}");
                         break;
                     case "-l":
                     case "--lockscreen":
                         SetLockScreenWallpaper(args[1]);
-                        Console.WriteLine($"Lock screen Wallpaper was changed to {args[1]}");
+                        Console.WriteLine($"Lock screen Wallpaper was changed. {args[1]}");
                         break;
                 }
             }

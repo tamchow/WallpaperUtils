@@ -5,9 +5,12 @@ param (
     [Parameter(Position = 2, HelpMessage = "Daily time schedule")]
     [Datetime]
     $time=(Get-Date 8pm),
-    [Parameter(Position = 3, HelpMessage = "Synchronize Desktop and Lockscreen Backgrounds?")]
+    [Parameter(Position = 3, HelpMessage = "Synchronize desktop background with that of lockscreen")]
     [bool]
-    $syncWPs=$false
+    $syncDesktopLockscreen=$false,
+    [Parameter(Position = 4, HelpMessage = "Synchronize lockscreen background with that of desktop")]
+    [bool]
+    $syncLockscreenDesktop=$false
 )
 
 function Unregister-ExistingTask($task_name)
@@ -58,14 +61,21 @@ else
 
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to random Spotlight"
 }
-if($syncWPs)
+if($syncDesktopLockscreen -or $syncLockscreenDesktop)
 {
     $task_name = "Sync Wallpaper"
     
     Unregister-ExistingTask($task_name)    
 
-    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-cw --desktop'
-
+    $action = @()
+    if($syncDesktopLockscreen)
+    {
+        $action += New-ScheduledTaskAction -Execute $app_name -Argument '-cw --desktop'
+    }
+    if($syncLockscreenDesktop)
+    {
+        $action += New-ScheduledTaskAction -Execute $app_name -Argument '-cw --lockscreen'
+    }
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Synchronizes desktop and lockscreen wallpapers"
 }
 

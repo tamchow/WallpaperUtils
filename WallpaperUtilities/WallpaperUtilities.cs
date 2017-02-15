@@ -17,6 +17,7 @@ namespace WallpaperUtilities
 {
     public static class Wallpaper
     {
+        private const int WaitMilliseconds = 10;
         const int SpiSetdeskwallpaper = 20;
         const int SpifUpdateinifile = 0x01;
         const int SpifSendwininichange = 0x02;
@@ -53,12 +54,28 @@ namespace WallpaperUtilities
             var pathWallpaper = "";
             using (var regKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Lock Screen\Creative", false))
             {
-                if (regKey != null)
+                if (regKey == null) return pathWallpaper;
+                pathWallpaper = regKey.GetValue("LandscapeAssetPath").ToString();
+                if (!string.IsNullOrWhiteSpace(pathWallpaper)) return pathWallpaper;
+                Process.Start("lsbg:");
+                var destinationFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                Func<string, bool> filter = file =>
                 {
-                    pathWallpaper = regKey.GetValue("LandscapeAssetPath").ToString();
+                    var extension = Path.GetExtension(file);
+                    return extension != null &&
+                           extension.Equals(CompletedExtension, StringComparison.InvariantCultureIgnoreCase);
+                };
+                while (!Directory.EnumerateFiles(destinationFolder).Any(filter))
+                {
+                    Thread.Sleep(WaitMilliseconds);
                 }
+                var sourceName = Directory.EnumerateFiles(destinationFolder).Where(filter).First();
+                var newFileName = $"{Guid.NewGuid()}_{Path.GetFileNameWithoutExtension(sourceName)}";
+                pathWallpaper = $"{destinationFolder}\\{newFileName}";
+                File.Copy(sourceName, pathWallpaper);
+                File.Delete(sourceName);
+                return pathWallpaper;
             }
-            return pathWallpaper;
         }
         /// <summary>
         /// Sets the lockscreen wallpaper to the image file denoted by the parameter path.
@@ -149,7 +166,7 @@ namespace WallpaperUtilities
                 //block until file has been copied
                 while (!Directory.EnumerateFiles(intermediateFolder).Contains(intermediateFile))
                 {
-                    Thread.Sleep(10);
+                    Thread.Sleep(WaitMilliseconds);
                 }
                 Console.WriteLine($"File {new FileInfo(path).Name} has been written to the intermediate folder as {intermediateName}.");
                 Console.WriteLine("Starting helper app...");
@@ -158,7 +175,7 @@ namespace WallpaperUtilities
                 var completedActionIndicator = $"{intermediateFile}{CompletedExtension}";
                 while (!Directory.EnumerateFiles(intermediateFolder).Contains(completedActionIndicator))
                 {
-                    Thread.Sleep(10);
+                    Thread.Sleep(WaitMilliseconds);
                 }
                 File.Delete(completedActionIndicator);
                 Console.WriteLine("Lockscreen background has been set, intermediate file deleted.");
@@ -206,42 +223,26 @@ namespace WallpaperUtilities
             }
             else
             {
-                SetDesktopWallpaper(new Uri(path), style);
+                using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true))
+                {
+                    if (key != null)
+                    {
+                        var styleData = Styles[style];
+                        key.SetValue(@"WallpaperStyle", styleData.WallpaperStyle());
+                        key.SetValue(@"TileWallpaper", styleData.TileWallpaper());
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Registry key  not found");
+                    }
+                }
+
+                SystemParametersInfo(SpiSetdeskwallpaper,
+                    0,
+                    path,
+                    SpifUpdateinifile | SpifSendwininichange);
             }
         }
-        public static void SetDesktopWallpaper(Uri uri, Style style)
-        {
-            if (style == Style.NoChange) return;
-            var inputStream = new System.Net.WebClient().OpenRead(uri.ToString());
-            if (inputStream == null || inputStream == Stream.Null)
-            {
-                throw new InvalidOperationException($"Source image URI {uri} is invalid");
-            }
-
-            var img = Image.FromStream(inputStream);
-            var tempPath = Path.Combine(Path.GetTempPath(), "wallpaper.bmp");
-            img.Save(tempPath, ImageFormat.Bmp);
-
-            using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true))
-            {
-                if (key != null)
-                {
-                    var styleData = Styles[style];
-                    key.SetValue(@"WallpaperStyle", styleData.WallpaperStyle());
-                    key.SetValue(@"TileWallpaper", styleData.TileWallpaper());
-                }
-                else
-                {
-                    throw new InvalidOperationException("Registry key  not found");
-                }
-            }
-
-            SystemParametersInfo(SpiSetdeskwallpaper,
-                0,
-                tempPath,
-                SpifUpdateinifile | SpifSendwininichange);
-        }
-
         public static void Main(string[] args)
         {
             if (args.Length == 0 || !(args.Length > 0 && new List<string> {"-d", "--desktop", "-l", "--lockscreen"}.Contains(args[0])))

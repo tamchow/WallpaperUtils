@@ -5,10 +5,10 @@ param (
     [Parameter(Position = 2, HelpMessage = "Daily time schedule")]
     [Datetime]
     $time=(Get-Date 8pm),
-    [Parameter(Position = 3, HelpMessage = "Synchronize desktop background with that of lockscreen")]
+    [Parameter(Position = 3, HelpMessage = "Set lockscreen image as desktop wallpaper")]
     [bool]
     $syncDesktopLockscreen=$false,
-    [Parameter(Position = 4, HelpMessage = "Synchronize lockscreen background with that of desktop")]
+    [Parameter(Position = 4, HelpMessage = "Set desktop wallpaper as lockscreen image")]
     [bool]
     $syncLockscreenDesktop=$false
 )
@@ -61,22 +61,26 @@ else
 
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Changes Wallpaper to random Spotlight"
 }
-if($syncDesktopLockscreen -or $syncLockscreenDesktop)
+if($syncDesktopLockscreen)
 {
-    $task_name = "Sync Wallpaper"
+    $task_name = "Set lockscreen image as desktop wallpaper"
     
-    Unregister-ExistingTask($task_name)    
-
-    $action = @()
-    if($syncDesktopLockscreen)
-    {
-        $action += New-ScheduledTaskAction -Execute $app_name -Argument '-cw --desktop'
-    }
-    if($syncLockscreenDesktop)
-    {
-        $action += New-ScheduledTaskAction -Execute $app_name -Argument '-cw --lockscreen'
-    }
-    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Synchronizes desktop and lockscreen wallpapers"
+    Unregister-ExistingTask($task_name)
+    
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-cw --desktop'
+    
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Sets lockscreen image as desktop wallpaper"
 }
+if($syncLockscreenDesktop)
+{
+    $task_name = "Set desktop wallpaper as lockscreen image"
+    
+    Unregister-ExistingTask($task_name)
+    
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-cw --lockscreen'
+    
+    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Sets desktop wallpaper as lockscreen image"
+}
+
 
 Write-Host "Scheduled task for $task_name registered."

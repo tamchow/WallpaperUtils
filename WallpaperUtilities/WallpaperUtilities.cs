@@ -71,9 +71,8 @@ namespace WallpaperUtilities
                 }
                 var sourceName = Directory.EnumerateFiles(destinationFolder).Where(filter).First();
                 var newFileName = $"{Guid.NewGuid()}_{Path.GetFileNameWithoutExtension(sourceName)}";
-                pathWallpaper = $"{destinationFolder}\\{newFileName}";
-                File.Copy(sourceName, pathWallpaper);
-                File.Delete(sourceName);
+                pathWallpaper = Path.Combine(destinationFolder, newFileName);
+                File.Move(sourceName, pathWallpaper);
                 return pathWallpaper;
             }
         }
@@ -134,7 +133,7 @@ namespace WallpaperUtilities
                 Console.WriteLine(path);
                 Process.Start("ms-settings:lockscreen");
 #endif
-#if UWP_HELPER
+#if NETWORK
     //UWP version - Sends the image data over a TCP socket (only way to send that much data into a UWP app from a Windows app)
                 var tcpServerListener = new TcpListener(IPAddress.Loopback, 4444);
                 tcpServerListener.Start(); //start server
@@ -161,7 +160,7 @@ namespace WallpaperUtilities
 #if INTERMEDIATE_FOLDER
                 var intermediateFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
                 var intermediateName = $"{Guid.NewGuid()}_{new FileInfo(path).Name}";
-                var intermediateFile = $"{intermediateFolder}\\{intermediateName}";
+                var intermediateFile = Path.Combine(intermediateFolder, intermediateName);
                 File.Copy(path, intermediateFile, true);
                 //block until file has been copied
                 while (!Directory.EnumerateFiles(intermediateFolder).Contains(intermediateFile))
@@ -223,6 +222,13 @@ namespace WallpaperUtilities
             }
             else
             {
+                var appDataDirectory =
+                    Directory.CreateDirectory(Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Path.GetTempPath(), "WallpaperUtilities"));
+                if(style == Style.NoChange) return;
+
+                var newPath = Path.Combine(appDataDirectory.FullName, $"wallpaper{Path.GetExtension(path)}");
+                File.Copy(path, newPath, true);
+
                 using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true))
                 {
                     if (key != null)
@@ -239,7 +245,7 @@ namespace WallpaperUtilities
 
                 SystemParametersInfo(SpiSetdeskwallpaper,
                     0,
-                    path,
+                    newPath,
                     SpifUpdateinifile | SpifSendwininichange);
             }
         }

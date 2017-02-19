@@ -72,9 +72,9 @@ namespace WallpaperUtilities
             WriteLine($"Existing files:\n{string.Join("\n", savedFiles)}\n\n");
 
             //Clean up temporary files if present
-            if (EnumerateFiles(utilities._spotlightAssets).Any())
+            foreach (var file in EnumerateFiles(utilities._spotlightAssets))
             {
-                Delete(utilities._spotlightAssets, true);
+                File.Delete(file);
             }
             var newFiles = 0;
             foreach (var file in EnumerateFiles(SpotlightLocal))
@@ -104,30 +104,29 @@ namespace WallpaperUtilities
             {
                 WriteLine("No new files, cleaning up.");
                 Delete(utilities._spotlight, true);
-                Delete(utilities._spotlightAssets, true);
-                Delete(utilities._spotlightHorizontal, true);
-                Delete(utilities._spotlightVertical, true);
             }
-
-            foreach (var newFile in EnumerateFiles(utilities._spotlightAssets))
+            else
             {
-                var fileInfo = new FileInfo(newFile);
-                Image image;
-                using (var stream = Open(newFile, FileMode.Open))
+                foreach (var newFile in EnumerateFiles(utilities._spotlightAssets))
                 {
-                    image = FromStream(stream);
-                }
-                Copy(newFile,
+                    var fileInfo = new FileInfo(newFile);
+                    Image image;
+                    using (var stream = Open(newFile, FileMode.Open))
+                    {
+                        image = FromStream(stream);
+                    }
+                    Copy(newFile,
                         image.Width >= image.Height
                             ? Combine(utilities._spotlightHorizontal, fileInfo.Name)
                             : Combine(utilities._spotlightVertical, fileInfo.Name));
+                }
+
+                WriteLine("Files segregated based on dimensions.\n");
+
+                Delete(utilities._spotlightAssets, true);
+
+                WriteLine("Temporary files deleted.\n");
             }
-
-            WriteLine("Files segregated based on dimensions.\n");
-
-            Delete(utilities._spotlightAssets, true);
-
-            WriteLine("Temporary files deleted.\n");
         }
 
 

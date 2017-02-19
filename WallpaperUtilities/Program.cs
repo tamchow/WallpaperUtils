@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 
 namespace WallpaperUtilities
 {
@@ -17,34 +18,75 @@ namespace WallpaperUtilities
                     case "--change-wallpaper":
                         Wallpaper.Main(args.Skip(1).ToArray());
                         break;
+                    case "-sw":
+                    case "--save-wallpaper":
+                        {
+                            if (secondArg == null)
+                            {
+                                throw new ArgumentException("No source specified");
+                            }
+                            var savePath = (args.Length < 3) ? SpotlightUtilities.DefaultSavePath : args[2];
+                            switch (secondArg)
+                            {
+                                case "-l":
+                                case "--lockscreen":
+                                    Wallpaper.SaveLockscreenWallpaper(savePath);
+                                    break;
+                                case "-d":
+                                case "--desktop":
+                                    Wallpaper.SaveDesktopWallpaper(savePath);
+                                    break;
+                                default:
+                                    throw new ArgumentException("Unrecognized save source");
+                            }
+                        }
+                        break;
                     case "-s":
                     case "--save":
+                    case "-si":
+                    case "--save-images":
                         SpotlightUtilities.SaveSpotlightImages(secondArg);
                         break;
                     case "-srw":
                     case "--set-random-wallpaper":
                     case "-slw":
                     case "--set-latest-wallpaper":
-                        var styleId = (int) Wallpaper.Style.Stretched;
-                        if (args.Length >= 3)
-                        {
-                            int.TryParse(args[2], out styleId);
-                        }
-                        var style = (Wallpaper.Style) styleId;
-                        switch (firstArg)
-                        {
-                            case "-srw":
-                            case "--set-random-wallpaper":
-                                SpotlightUtilities.SetRandomSpotlightWallpaper(secondArg, style);
-                                break;
-                            case "-slw":
-                            case "--set-latest-wallpaper":
-                                SpotlightUtilities.SetLatestSpotlightWallpaper(secondArg, style);
-                                break;
+                    {
+                        Func<string, Func<string, bool>> modifier = prefix => x => x.StartsWith(prefix.ToLowerInvariant());
+                            Func<string, Func<string, string>> removePrefix = prefix => str => str.Remove(
+                                str.IndexOf(prefix, StringComparison.Ordinal), prefix.Length);
+                            var styleId = (int)Wallpaper.Style.Stretched;
+                            var useTemporaryPath = true;
+                            var styleModifier = modifier("styleID:");
+                            var temporaryModifier = modifier("temp:");
+                            var styleFormatter = removePrefix("styleID:");
+                            var temporaryFormatter = removePrefix("temp:");
+                            if (args.Any(styleModifier))
+                            {
+                                styleId = int.Parse(styleFormatter(args.First(styleModifier)));
+                                secondArg = null;
+                            }
+                            if (args.Any(temporaryModifier))
+                            {
+                                useTemporaryPath = bool.Parse(temporaryFormatter(args.First(temporaryModifier)));
+                                secondArg = null;
+                            }
+                            var style = (Wallpaper.Style)styleId;
+                            switch (firstArg)
+                            {
+                                case "-srw":
+                                case "--set-random-wallpaper":
+                                    SpotlightUtilities.SetRandomSpotlightWallpaper(secondArg, style, useTemporaryPath);
+                                    break;
+                                case "-slw":
+                                case "--set-latest-wallpaper":
+                                    SpotlightUtilities.SetLatestSpotlightWallpaper(secondArg, style, useTemporaryPath);
+                                    break;
+                            }
                         }
                         break;
                     default:
-                        throw new ArgumentException("Unrecognized option");
+                        throw new ArgumentException($"Unrecognized option {firstArg}");
                 }
             }
             else

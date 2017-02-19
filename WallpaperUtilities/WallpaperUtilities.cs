@@ -1,23 +1,27 @@
 ﻿#define INTERMEDIATE_FOLDER
+//#define INDEPENDENT
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.IO;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Threading;
 using Microsoft.Win32;
+using static System.Console;
+using static System.Diagnostics.Process;
+using static System.Environment;
+using static System.Guid;
+using static System.IO.Directory;
+using static System.IO.File;
+using static System.IO.Path;
+using static System.String;
+using static System.StringComparison;
+using static System.Threading.Thread;
 
 namespace WallpaperUtilities
 {
     public static class Wallpaper
     {
-        private const int WaitMilliseconds = 10;
+        private const int WaitMilliseconds = 10, DelayMilliseconds = 2000;
         const int SpiSetdeskwallpaper = 20;
         const int SpifUpdateinifile = 0x01;
         const int SpifSendwininichange = 0x02;
@@ -36,7 +40,7 @@ namespace WallpaperUtilities
             NoChange
         }
 
-        public  static string GetCurrentDesktopWallpaperPath()
+        public static string GetCurrentDesktopWallpaperPath()
         {
             var pathWallpaper = "";
             using (var regKey = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", false))
@@ -49,40 +53,68 @@ namespace WallpaperUtilities
             return pathWallpaper;
         }
 
-        public static string GetCurrentLockScreenWallpaperPath()
+        public static Tuple<string, bool> GetCurrentLockScreenWallpaperPath()
         {
             var pathWallpaper = "";
-            using (var regKey = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Lock Screen\Creative", false))
+            using (
+                var regKey =
+                    Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Lock Screen\Creative",
+                        false))
             {
-                if (regKey == null) return pathWallpaper;
-                pathWallpaper = regKey.GetValue("LandscapeAssetPath").ToString();
-                if (!string.IsNullOrWhiteSpace(pathWallpaper)) return pathWallpaper;
-                Process.Start("lsbg:");
-                var destinationFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                Func<string, bool> filter = file =>
+                if (regKey != null)
                 {
-                    var extension = Path.GetExtension(file);
-                    return extension != null &&
-                           extension.Equals(CompletedExtension, StringComparison.InvariantCultureIgnoreCase);
-                };
-                while (!Directory.EnumerateFiles(destinationFolder).Any(filter))
-                {
-                    Thread.Sleep(WaitMilliseconds);
+                    pathWallpaper = regKey.GetValue("LandscapeAssetPath").ToString();
+                    if (!IsNullOrWhiteSpace(pathWallpaper)) return new Tuple<string, bool>(pathWallpaper, false);
                 }
-                var sourceName = Directory.EnumerateFiles(destinationFolder).Where(filter).First();
-                var newFileName = $"{Guid.NewGuid()}_{Path.GetFileNameWithoutExtension(sourceName)}";
-                pathWallpaper = Path.Combine(destinationFolder, newFileName);
-                File.Move(sourceName, pathWallpaper);
-                return pathWallpaper;
             }
+            Start("lsbg:");
+            var destinationFolder = GetFolderPath(SpecialFolder.MyPictures);
+            Func<string, bool> filter = file =>
+            {
+                var extension = GetExtension(file);
+                return extension != null &&
+                       extension.Equals(CompletedExtension, InvariantCultureIgnoreCase);
+            };
+            while (!EnumerateFiles(destinationFolder).Any(filter))
+            {
+                Sleep(WaitMilliseconds);
+            }
+            var sourceName = EnumerateFiles(destinationFolder).Where(filter).First();
+            var newFileName = $"{NewGuid()}_{GetFileNameWithoutExtension(sourceName)}";
+            pathWallpaper = Combine(destinationFolder, newFileName);
+            File.Move(sourceName, newFileName);
+#if INDEPENDENT
+            ManualCopyFile(sourceName, pathWallpaper);
+            File.Delete(sourceName);
+#endif
+            return new Tuple<string, bool>(pathWallpaper, true);
         }
+
+        private static void ManualCopyFile(string sourceName, string destinationName)
+        {
+            destinationName = HandleFileNaming(sourceName, destinationName);
+            Sleep(DelayMilliseconds);
+            //Reimplementing move here to avoid ridiculous race condition errors.
+            //I hate this ridiculous IPC mechanism!
+            using (var readStream = OpenRead(sourceName))
+            {
+                using (var writeStream = OpenWrite(destinationName))
+                {
+                    var buffer = new byte[new FileInfo(sourceName).Length];
+                    readStream.Read(buffer, 0, buffer.Length);
+                    writeStream.Write(buffer, 0, buffer.Length);
+                }
+            }
+            //End typically useless reimplementation
+        }
+
         /// <summary>
         /// Sets the lockscreen wallpaper to the image file denoted by the parameter path.
         /// </summary>
         /// <param name="path">the path to the image file to set as the lockscreen wallpaper</param>
         public static void SetLockScreenWallpaper(string path)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (IsNullOrWhiteSpace(path))
             {
                 SetDesktopWallpaperAsLockScreenWallpaper();
             }
@@ -158,26 +190,26 @@ namespace WallpaperUtilities
                 Console.WriteLine("Data copied to network stream.");a
 #endif
 #if INTERMEDIATE_FOLDER
-                var intermediateFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                var intermediateName = $"{Guid.NewGuid()}_{new FileInfo(path).Name}";
-                var intermediateFile = Path.Combine(intermediateFolder, intermediateName);
-                File.Copy(path, intermediateFile, true);
+                var intermediateFolder = GetFolderPath(SpecialFolder.MyPictures);
+                var intermediateName = $"{NewGuid()}_{new FileInfo(path).Name}";
+                var intermediateFile = Combine(intermediateFolder, intermediateName);
+                Copy(path, intermediateFile, true);
                 //block until file has been copied
-                while (!Directory.EnumerateFiles(intermediateFolder).Contains(intermediateFile))
+                while (!EnumerateFiles(intermediateFolder).Contains(intermediateFile))
                 {
-                    Thread.Sleep(WaitMilliseconds);
+                    Sleep(WaitMilliseconds);
                 }
-                Console.WriteLine($"File {new FileInfo(path).Name} has been written to the intermediate folder as {intermediateName}.");
-                Console.WriteLine("Starting helper app...");
-                Process.Start($"lsbg:{intermediateName}");
-                Console.WriteLine("Helper app started...");
+                WriteLine($"File {new FileInfo(path).Name} has been written to the intermediate folder as {intermediateName}.");
+                WriteLine("Starting helper app...");
+                Start($"lsbg:{intermediateName}");
+                WriteLine("Helper app started...");
                 var completedActionIndicator = $"{intermediateFile}{CompletedExtension}";
-                while (!Directory.EnumerateFiles(intermediateFolder).Contains(completedActionIndicator))
+                while (!EnumerateFiles(intermediateFolder).Contains(completedActionIndicator))
                 {
-                    Thread.Sleep(WaitMilliseconds);
+                    Sleep(WaitMilliseconds);
                 }
                 File.Delete(completedActionIndicator);
-                Console.WriteLine("Lockscreen background has been set, intermediate file deleted.");
+                WriteLine("Lockscreen background has been set, intermediate file deleted.");
 #endif
             }
         }
@@ -185,7 +217,8 @@ namespace WallpaperUtilities
         private const string CompletedExtension = ".done";
         public static void SetLockScreenWallpaperAsDesktopWallpaper()
         {
-            SetDesktopWallpaper(GetCurrentLockScreenWallpaperPath());
+            var lockscreenWallpapperData = GetCurrentLockScreenWallpaperPath();
+            SetDesktopWallpaper(lockscreenWallpapperData.Item1, cleanup: lockscreenWallpapperData.Item2);
         }
         public static void SetDesktopWallpaperAsLockScreenWallpaper()
         {
@@ -214,21 +247,24 @@ namespace WallpaperUtilities
             { Style.Center, new StyleData(1) },
             { Style.Fit, new StyleData(6) }
         };
-        public static void SetDesktopWallpaper(string path, Style style = Style.Stretched)
+        public static void SetDesktopWallpaper(string path, Style style = Style.Stretched, bool cleanup = false)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (IsNullOrWhiteSpace(path))
             {
                 SetLockScreenWallpaperAsDesktopWallpaper();
             }
             else
             {
                 var appDataDirectory =
-                    Directory.CreateDirectory(Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Path.GetTempPath(), "WallpaperUtilities"));
-                if(style == Style.NoChange) return;
+                    CreateDirectory(Combine(GetEnvironmentVariable("LOCALAPPDATA") ?? GetTempPath(), "WallpaperUtilities"));
+                if (style == Style.NoChange) return;
 
-                var newPath = Path.Combine(appDataDirectory.FullName, $"wallpaper{Path.GetExtension(path)}");
-                File.Copy(path, newPath, true);
-
+                var newPath = Combine(appDataDirectory.FullName, $"wallpaper{GetExtension(path)}");
+                Copy(path, newPath, true);
+                while (appDataDirectory.EnumerateFiles().All(file => file.FullName != newPath))
+                {
+                    Sleep(WaitMilliseconds);
+                }
                 using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true))
                 {
                     if (key != null)
@@ -248,12 +284,56 @@ namespace WallpaperUtilities
                     newPath,
                     SpifUpdateinifile | SpifSendwininichange);
             }
+            if (cleanup && path != null)
+            {
+                File.Delete(path);
+            }
+        }
+
+        public static void SaveLockscreenWallpaper(string pathWallpaper)
+        {
+#if INDEPENDENT
+            ManualCopyFile(GetCurrentLockScreenWallpaperPath().Item1, pathWallpaper);
+#endif
+            var sourcePath = GetCurrentLockScreenWallpaperPath().Item1;
+            pathWallpaper = HandleFileNaming(sourcePath, pathWallpaper);
+            Copy(sourcePath, pathWallpaper);
+            WriteLine($"{sourcePath} copied to {pathWallpaper}");
+        }
+
+        public static void SaveDesktopWallpaper(string pathWallpaper)
+        {
+#if INDEPENDENT
+            ManualCopyFile(GetCurrentDesktopWallpaperPath(), pathWallpaper);
+#endif
+            var sourcePath = GetCurrentDesktopWallpaperPath();
+            pathWallpaper = HandleFileNaming(sourcePath, pathWallpaper);
+            Copy(sourcePath, pathWallpaper);
+            WriteLine($"{sourcePath} copied to {pathWallpaper}");
+        }
+
+        private static string HandleFileNaming(string sourceName, string destinationName)
+        {
+            if (sourceName == null)
+            {
+                throw new ArgumentException("Parameter cannot be null", nameof(sourceName), new NullReferenceException());
+            }
+            if (Directory.Exists(destinationName))
+            {
+                destinationName = Combine(destinationName, $"({DateTime.Now.ToString("yyyy-MM-dd,hh.mm.ss,t,z")})_{GetFileName(sourceName)}" +
+                                                          (IsNullOrEmpty(GetExtension(sourceName)) ? ".jpg" : string.Empty));
+            }
+            else
+            {
+                CreateDirectory(GetDirectoryName(destinationName) ?? GetDirectoryRoot(destinationName));
+            }
+            return destinationName;
         }
         public static void Main(string[] args)
         {
-            if (args.Length == 0 || !(args.Length > 0 && new List<string> {"-d", "--desktop", "-l", "--lockscreen"}.Contains(args[0])))
+            if (args.Length == 0 || !(args.Length > 0 && new List<string> { "-d", "--desktop", "-l", "--lockscreen" }.Contains(args[0])))
             {
-                var nArgs = new List<string> {"--desktop", args.Length > 0 ? args[0] : ""};
+                var nArgs = new List<string> { "--desktop", args.Length > 0 ? args[0] : "" };
                 if (args.Length > 1)
                 {
                     nArgs.Add(args[1]);
@@ -262,7 +342,7 @@ namespace WallpaperUtilities
             }
             else if (args.Length == 1)
             {
-                var nArgs = new List<string> {args[0], ""};
+                var nArgs = new List<string> { args[0], "" };
                 args = nArgs.ToArray();
             }
             if (args.Length >= 2)
@@ -273,18 +353,18 @@ namespace WallpaperUtilities
                     case "-d":
                     case "--desktop":
                         SetDesktopWallpaper(args[1], (args.Length > 2) ? (Style)int.Parse(args[2]) : Style.Stretched);
-                        Console.WriteLine($"Desktop Wallpaper was changed. {args[1]}");
+                        WriteLine($"Desktop Wallpaper was changed. {args[1]}");
                         break;
                     case "-l":
                     case "--lockscreen":
                         SetLockScreenWallpaper(args[1]);
-                        Console.WriteLine($"Lock screen Wallpaper was changed. {args[1]}");
+                        WriteLine($"Lock screen Wallpaper was changed. {args[1]}");
                         break;
                 }
             }
             else
             {
-                Console.WriteLine("Invalid arguments");
+                WriteLine("Invalid arguments");
             }
         }
     }

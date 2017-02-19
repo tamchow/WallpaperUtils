@@ -10,7 +10,10 @@ param (
     $syncDesktopLockscreen=$false,
     [Parameter(Position = 4, HelpMessage = "Set desktop wallpaper as lockscreen image")]
     [bool]
-    $syncLockscreenDesktop=$false
+    $syncLockscreenDesktop=$false,
+    [Parameter(Position = 4, HelpMessage = "Extra arguments for executable")]
+    [string]
+    $extraArgs=$false
 )
 
 function Unregister-ExistingTask($task_name)
@@ -67,7 +70,7 @@ if($syncDesktopLockscreen)
     
     Unregister-ExistingTask($task_name)
     
-    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-cw --desktop'
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument "-cw --desktop $extraArgs"
     
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Sets lockscreen image as desktop wallpaper"
 }
@@ -77,7 +80,7 @@ if($syncLockscreenDesktop)
     
     Unregister-ExistingTask($task_name)
     
-    $action = New-ScheduledTaskAction -Execute $app_name -Argument '-cw --lockscreen'
+    $action = New-ScheduledTaskAction -Execute $app_name -Argument "-cw --lockscreen $extraArgs"
     
     Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Sets desktop wallpaper as lockscreen image"
 }

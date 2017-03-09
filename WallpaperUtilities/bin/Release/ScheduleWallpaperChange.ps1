@@ -11,9 +11,12 @@ param (
     [Parameter(Position = 4, HelpMessage = "Set desktop wallpaper as lockscreen image")]
     [bool]
     $syncLockscreenDesktop=$false,
-    [Parameter(Position = 4, HelpMessage = "Extra arguments for executable")]
+    [Parameter(Position = 5, HelpMessage = "Extra arguments for executable")]
     [string]
-    $extraArgs=$false
+    $extraArgs="",
+    [Parameter(Position = 6, HelpMessage = "Run on current user login")]
+    [bool]
+    $onLogon=$true
 )
 
 function Unregister-ExistingTask($task_name)
@@ -41,7 +44,9 @@ $task_name = ""
 
 $trigger = @()
 $trigger += New-ScheduledTaskTrigger -Daily -At $time
+if($onLogon){
 $trigger += New-ScheduledTaskTrigger -AtLogon -User "$(whoami)"
+}
 
 if($latest)
 {

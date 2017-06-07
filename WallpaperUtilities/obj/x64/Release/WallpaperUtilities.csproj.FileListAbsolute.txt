@@ -1,8 +1,0 @@
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\x64\Release\WallpaperUtilities.exe.config
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\x64\Release\ScheduleWallpaperChange.ps1
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\x64\Release\ScheduleWallpaperSave.ps1
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\x64\Release\WallpaperUtilities.exe
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\bin\x64\Release\WallpaperUtilities.pdb
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\x64\Release\WallpaperUtilities.exe
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\x64\Release\WallpaperUtilities.pdb
-D:\Programming\Projects\WallpaperUtilities\WallpaperUtilities\obj\x64\Release\WallpaperUtilities.csprojResolveAssemblyReference.cache

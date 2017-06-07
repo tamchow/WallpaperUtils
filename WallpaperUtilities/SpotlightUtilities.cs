@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Security;
 using static System.Console;
 using static System.Drawing.Image;
 using static System.IO.Directory;
@@ -18,19 +17,16 @@ namespace WallpaperUtilities
     {
         /// <summary>
         /// </summary>
-        private readonly int _thresholdKb, _thresholdBytes;
+        private const string HorizontalCode = "Desktop", VerticalCode = "Mobile", TempCode = "CopyAssets";
+
+
+        /// <summary>
+        /// </summary>
+        private const int BytesPerKb = 1024;
 
         /// <summary>
         /// </summary>
         private static readonly Random Rng = new Random();
-
-        /// <summary>
-        /// </summary>
-        private readonly string _spotlightBase, _spotlight, _spotlightAssets, _spotlightHorizontal, _spotlightVertical, _currentWallpaperPath;
-
-        /// <summary>
-        /// </summary>
-        private readonly Bitmap _currentWallpaper;
 
         /// <summary>
         /// </summary>
@@ -40,37 +36,61 @@ namespace WallpaperUtilities
         /// </summary>
         public static readonly string DefaultSavePath;
 
+        /// <summary>
+        /// </summary>
+        private readonly Bitmap _currentWallpaper;
+
+        private readonly bool _saveOnlyDesktopImages;
+        private readonly bool _saveOnlyMobileImages;
+
+        /// <summary>
+        /// </summary>
+        private readonly string _spotlightBase,
+            _spotlight,
+            _spotlightAssets,
+            _spotlightHorizontal,
+            _spotlightVertical,
+            _currentWallpaperPath;
+
+        /// <summary>
+        /// </summary>
+        private readonly int _thresholdBytes;
+
+        /// <summary>
+        /// </summary>
+        private readonly int _thresholdKb;
+
         static SpotlightUtilities()
         {
-            SpotlightLocal = $"{Environment.GetEnvironmentVariable("LOCALAPPDATA")}\\Packages\\Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy\\LocalState\\Assets";
+            SpotlightLocal =
+                $"{Environment.GetEnvironmentVariable("LOCALAPPDATA")}\\Packages\\Microsoft.Windows.ContentDeliveryManager_cw5n1h2txyewy\\LocalState\\Assets";
             DefaultSavePath = $"{Environment.GetEnvironmentVariable("USERPROFILE")}\\Pictures";
         }
 
         /// <summary>
         /// </summary>
-        private const string HorizontalCode = "Desktop", VerticalCode = "Mobile", TempCode = "CopyAssets";
-
-        /// <summary>
-        /// </summary>
         /// <param name="savePath"></param>
         /// <param name="threshold"></param>
-        private SpotlightUtilities(string savePath = null, int threshold = 100)
+        /// <param name="saveOnlyDesktopImages"></param>
+        /// <param name="saveOnlyMobileImages"></param>
+        private SpotlightUtilities(string savePath = null, int threshold = 100, bool saveOnlyDesktopImages = false,
+            bool saveOnlyMobileImages = false)
         {
             _currentWallpaperPath = Wallpaper.GetCurrentDesktopWallpaperPath();
             using (var stream = Open(_currentWallpaperPath, FileMode.Open))
             {
-                _currentWallpaper = (Bitmap)FromStream(stream);
+                _currentWallpaper = (Bitmap) FromStream(stream);
             }
             if (string.IsNullOrWhiteSpace(savePath))
-            {
                 savePath = DefaultSavePath;
-            }
             _spotlightBase = $"{savePath}\\Spotlight";
-            _spotlight = $"{_spotlightBase}\\{DateTime.Today.Date.ToString("dd-MM-yyyy")}";
+            _spotlight = $"{_spotlightBase}\\{DateTime.Today.Date:dd-MM-yyyy}";
             _spotlightAssets = $"{_spotlight}\\{TempCode}";
             _spotlightHorizontal = $"{_spotlight}\\{HorizontalCode}";
             _spotlightVertical = $"{_spotlight}\\{VerticalCode}";
             _thresholdKb = threshold;
+            _saveOnlyDesktopImages = saveOnlyDesktopImages;
+            _saveOnlyMobileImages = saveOnlyMobileImages;
             _thresholdBytes = _thresholdKb * BytesPerKb;
         }
 
@@ -84,42 +104,61 @@ namespace WallpaperUtilities
         {
             var savedFiles = new List<string>();
             if (Directory.Exists(rootFolder))
-            {
                 savedFiles.AddRange(from folder in EnumerateDirectories(rootFolder) //get daily images folders
-                                    from subfolder in (onlyLandscape ?
-                                        new List<string> { $"{folder}\\{HorizontalCode}" } //get desktop folder
-                                        : EnumerateDirectories(folder)) //get desktop and mobile folders
-                                    from file in EnumerateFiles(subfolder) //get all image file names in these folders
-                                    select onlyName ? new FileInfo(file).Name : file);
-            }
-            return new HashSet<string>(savedFiles).ToList();//eliminate duplicates
+                    from subfolder in onlyLandscape
+                        ? new List<string> {$"{folder}\\{HorizontalCode}"} //get desktop folder
+                        : EnumerateDirectories(folder) //get desktop and mobile folders
+                    from file in EnumerateFiles(subfolder) //get all image file names in these folders
+                    select onlyName ? new FileInfo(file).Name : file);
+            return new HashSet<string>(savedFiles).ToList(); //eliminate duplicates
         }
 
-        /// <exception cref="IOException">The directory specified by <paramref name="path" /> is a file.-or-The network name is not known.</exception>
+        /// <exception cref="IOException">
+        ///     The directory specified by <paramref name="path" /> is a file.-or-The network name is not
+        ///     known.
+        /// </exception>
         /// <exception cref="UnauthorizedAccessException">The caller does not have the required permission. </exception>
         /// <exception cref="DirectoryNotFoundException">The specified path is invalid (for example, it is on an unmapped drive). </exception>
-        /// <exception cref="ArgumentException"><paramref name="path" /> is a zero-length string, contains only white space, or contains one or more invalid characters. You can query for invalid characters by using the <see cref="M:System.IO.Path.GetInvalidPathChars" /> method.-or-<paramref name="path" /> is prefixed with, or contains, only a colon character (:).</exception>
+        /// <exception cref="ArgumentException">
+        ///     <paramref name="path" /> is a zero-length string, contains only white space, or
+        ///     contains one or more invalid characters. You can query for invalid characters by using the
+        ///     <see cref="M:System.IO.Path.GetInvalidPathChars" /> method.-or-<paramref name="path" /> is prefixed with, or
+        ///     contains, only a colon character (:).
+        /// </exception>
         /// <exception cref="ArgumentNullException"><paramref name="path" /> is null. </exception>
-        /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length. For example, on Windows-based platforms, paths must be less than 248 characters and file names must be less than 260 characters. </exception>
-        /// <exception cref="NotSupportedException"><paramref name="path" /> contains a colon character (:) that is not part of a drive label ("C:\").</exception>
+        /// <exception cref="PathTooLongException">
+        ///     The specified path, file name, or both exceed the system-defined maximum length.
+        ///     For example, on Windows-based platforms, paths must be less than 248 characters and file names must be less than
+        ///     260 characters.
+        /// </exception>
+        /// <exception cref="NotSupportedException">
+        ///     <paramref name="path" /> contains a colon character (:) that is not part of a
+        ///     drive label ("C:\").
+        /// </exception>
         /// <exception cref="SecurityException">The caller does not have the required permission. </exception>
         /// <exception cref="FileNotFoundException">The file does not exist.-or- The Length property is called for a directory. </exception>
-        public static void SaveSpotlightImages(string savePath = null, int threshold = 100, bool saveOnlyDesktopImages = false, bool saveOnlyMobileImages = false)
+        public static void SaveSpotlightImages(string savePath = null, int threshold = 100,
+            bool saveOnlyDesktopImages = false, bool saveOnlyMobileImages = false)
         {
-            var utilities = new SpotlightUtilities(savePath, threshold);
+            var utilities = new SpotlightUtilities(savePath, threshold, saveOnlyDesktopImages, saveOnlyMobileImages);
             var savedFiles = GetFileList(utilities._spotlightBase, true, false);
             CreateDirectory(utilities._spotlight);
             CreateDirectory(utilities._spotlightAssets);
-            CreateDirectory(utilities._spotlightHorizontal);
-            CreateDirectory(utilities._spotlightVertical);
+            if (utilities._saveOnlyMobileImages)
+                WriteLine("Only saving mobile images, not creating folder for desktop images.");
+            else
+                CreateDirectory(utilities._spotlightHorizontal);
+
+            if (utilities._saveOnlyDesktopImages)
+                WriteLine("Only saving desktop images, not creating folder for mobile images.");
+            else
+                CreateDirectory(utilities._spotlightVertical);
 
             WriteLine($"Existing files:\n{string.Join("\n", savedFiles)}\n\n");
 
             //Clean up temporary files if present
             foreach (var file in EnumerateFiles(utilities._spotlightAssets))
-            {
                 File.Delete(file);
-            }
             var newFiles = 0;
             foreach (var file in EnumerateFiles(SpotlightLocal))
             {
@@ -129,7 +168,8 @@ namespace WallpaperUtilities
 
                 if (fileInfo.Length < utilities._thresholdBytes)
                 {
-                    WriteLine($"File {fileInfo.Name} of size {fileInfo.Length / BytesPerKb} KB < {utilities._thresholdKb} KB skipped.\n");
+                    WriteLine(
+                        $"File {fileInfo.Name} of size {fileInfo.Length / BytesPerKb} KB < {utilities._thresholdKb} KB skipped.\n");
                     continue;
                 }
 
@@ -159,13 +199,15 @@ namespace WallpaperUtilities
                     {
                         image = FromStream(stream);
                     }
-                    var isMobileImage = image.Width >= image.Height;
-                    if (!saveOnlyDesktopImages && isMobileImage)
+                    var isMobileImage = image.Width <= image.Height;
+                    if (isMobileImage && !utilities._saveOnlyDesktopImages)
                     {
+                        WriteLine("Saving Mobile Image.");
                         Copy(newFile, Combine(utilities._spotlightVertical, fileInfo.Name));
                     }
-                    else if (!saveOnlyMobileImages)
+                    else if (!isMobileImage && !utilities._saveOnlyMobileImages)
                     {
+                        WriteLine("Saving Desktop Image.");
                         Copy(newFile, Combine(utilities._spotlightHorizontal, fileInfo.Name));
                     }
                 }
@@ -178,20 +220,20 @@ namespace WallpaperUtilities
             }
         }
 
-
-        /// <summary>
-        /// </summary>
-        private const int BytesPerKb = 1024;
-
         /// <summary>
         /// </summary>
         /// <param name="loadPath"></param>
         /// <param name="style"></param>
         /// <param name="temporary"></param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="index" /> is less than 0.-or-<paramref name="index" /> is equal to or greater than <see cref="P:System.Collections.Generic.List`1.Count" />. </exception>
-        public static void SetRandomSpotlightWallpaper(string loadPath = null, Wallpaper.Style style = Wallpaper.Style.Stretched, bool temporary = false)
+        /// <exception cref="ArgumentOutOfRangeException">
+        ///     <paramref name="index" /> is less than 0.-or-<paramref name="index" /> is
+        ///     equal to or greater than <see cref="P:System.Collections.Generic.List`1.Count" />.
+        /// </exception>
+        public static void SetRandomSpotlightWallpaper(string loadPath = null,
+            Wallpaper.Style style = Wallpaper.Style.Stretched, bool temporary = false)
         {
-            SetSpotlightWallpaper(spotlightImages => spotlightImages[Rng.Next(spotlightImages.Count)], loadPath, style, temporary);
+            SetSpotlightWallpaper(spotlightImages => spotlightImages[Rng.Next(spotlightImages.Count)], loadPath, style,
+                temporary);
         }
 
         /// <summary>
@@ -200,9 +242,11 @@ namespace WallpaperUtilities
         /// <param name="style"></param>
         /// <param name="temporary"></param>
         /// <exception cref="ArgumentNullException"><paramref name="source" /> or <paramref name="keySelector" /> is null.</exception>
-        public static void SetLatestSpotlightWallpaper(string loadPath = null, Wallpaper.Style style = Wallpaper.Style.Stretched, bool temporary = false)
+        public static void SetLatestSpotlightWallpaper(string loadPath = null,
+            Wallpaper.Style style = Wallpaper.Style.Stretched, bool temporary = false)
         {
-            SetSpotlightWallpaper(spotlightImages => spotlightImages.OrderBy(File.GetLastWriteTime).Last(), loadPath, style, temporary);
+            SetSpotlightWallpaper(spotlightImages => spotlightImages.OrderBy(File.GetLastWriteTime).Last(), loadPath,
+                style, temporary);
         }
 
         /// <summary>
@@ -217,17 +261,15 @@ namespace WallpaperUtilities
             var utilities = new SpotlightUtilities();
             var deletePath = false;
             if (string.IsNullOrWhiteSpace(loadPath))
-            {
-                if (temporary && (!Directory.Exists(utilities._spotlightBase) || (GetFileSystemEntries(utilities._spotlightBase).Length == 0)))
+                if (temporary && (!Directory.Exists(utilities._spotlightBase) ||
+                                  GetFileSystemEntries(utilities._spotlightBase).Length == 0))
                 {
                     loadPath = $"{GetTempPath()}SpotlightTemp";
 
                     WriteLine($"Cleaning and using temporary folder: {loadPath}");
 
                     if (Directory.Exists(loadPath))
-                    {
                         Delete(loadPath, true);
-                    }
 
                     utilities = new SpotlightUtilities(loadPath);
                     SaveSpotlightImages(loadPath);
@@ -239,13 +281,13 @@ namespace WallpaperUtilities
                 {
                     loadPath = utilities._spotlightBase;
                 }
-            }
 
             WriteLine($"Original wallpaper was at {utilities._currentWallpaperPath}, loading images from {loadPath}");
 
             var spotlightImages = GetFileList(loadPath);
 
-            spotlightImages = spotlightImages.Where(image => !ImageUtilities.ImagesEqual(image, utilities._currentWallpaper)).ToList();
+            spotlightImages = spotlightImages
+                .Where(image => !ImageUtilities.ImagesEqual(image, utilities._currentWallpaper)).ToList();
 
             var imagePath = determiner(spotlightImages);
 
@@ -275,21 +317,33 @@ namespace WallpaperUtilities
             /// <param name="firstImagePath"></param>
             /// <param name="secondImagePath"></param>
             /// <returns></returns>
-            /// <exception cref="ArgumentException"><paramref name="path" /> is a zero-length string, contains only white space, or contains one or more invalid characters as defined by <see cref="F:System.IO.Path.InvalidPathChars" />. </exception>
+            /// <exception cref="ArgumentException">
+            ///     <paramref name="path" /> is a zero-length string, contains only white space, or
+            ///     contains one or more invalid characters as defined by <see cref="F:System.IO.Path.InvalidPathChars" />.
+            /// </exception>
             /// <exception cref="ArgumentNullException"><paramref name="path" /> is null. </exception>
-            /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length. For example, on Windows-based platforms, paths must be less than 248 characters, and file names must be less than 260 characters. </exception>
+            /// <exception cref="PathTooLongException">
+            ///     The specified path, file name, or both exceed the system-defined maximum length.
+            ///     For example, on Windows-based platforms, paths must be less than 248 characters, and file names must be less than
+            ///     260 characters.
+            /// </exception>
             /// <exception cref="ArgumentOutOfRangeException"><paramref name="mode" /> specified an invalid value. </exception>
             /// <exception cref="NotSupportedException"><paramref name="path" /> is in an invalid format. </exception>
             /// <exception cref="DirectoryNotFoundException">The specified path is invalid, (for example, it is on an unmapped drive). </exception>
             /// <exception cref="IOException">An I/O error occurred while opening the file. </exception>
-            /// <exception cref="UnauthorizedAccessException"><paramref name="path" /> specified a file that is read-only.-or- This operation is not supported on the current platform.-or- <paramref name="path" /> specified a directory.-or- The caller does not have the required permission. -or-<paramref name="mode" /> is <see cref="F:System.IO.FileMode.Create" /> and the specified file is a hidden file.</exception>
+            /// <exception cref="UnauthorizedAccessException">
+            ///     <paramref name="path" /> specified a file that is read-only.-or- This
+            ///     operation is not supported on the current platform.-or- <paramref name="path" /> specified a directory.-or- The
+            ///     caller does not have the required permission. -or-<paramref name="mode" /> is
+            ///     <see cref="F:System.IO.FileMode.Create" /> and the specified file is a hidden file.
+            /// </exception>
             /// <exception cref="FileNotFoundException">The file specified in <paramref name="path" /> was not found. </exception>
             internal static bool ImagesEqual(string firstImagePath, string secondImagePath)
             {
                 Bitmap secondImage;
                 using (var stream = Open(secondImagePath, FileMode.Open))
                 {
-                    secondImage = (Bitmap)FromStream(stream);
+                    secondImage = (Bitmap) FromStream(stream);
                 }
                 return ImagesEqual(firstImagePath, secondImage);
             }
@@ -299,21 +353,33 @@ namespace WallpaperUtilities
             /// <param name="firstImagePath"></param>
             /// <param name="secondImage"></param>
             /// <returns></returns>
-            /// <exception cref="ArgumentException"><paramref name="path" /> is a zero-length string, contains only white space, or contains one or more invalid characters as defined by <see cref="F:System.IO.Path.InvalidPathChars" />. </exception>
+            /// <exception cref="ArgumentException">
+            ///     <paramref name="path" /> is a zero-length string, contains only white space, or
+            ///     contains one or more invalid characters as defined by <see cref="F:System.IO.Path.InvalidPathChars" />.
+            /// </exception>
             /// <exception cref="ArgumentNullException"><paramref name="path" /> is null. </exception>
-            /// <exception cref="PathTooLongException">The specified path, file name, or both exceed the system-defined maximum length. For example, on Windows-based platforms, paths must be less than 248 characters, and file names must be less than 260 characters. </exception>
+            /// <exception cref="PathTooLongException">
+            ///     The specified path, file name, or both exceed the system-defined maximum length.
+            ///     For example, on Windows-based platforms, paths must be less than 248 characters, and file names must be less than
+            ///     260 characters.
+            /// </exception>
             /// <exception cref="ArgumentOutOfRangeException"><paramref name="mode" /> specified an invalid value. </exception>
             /// <exception cref="NotSupportedException"><paramref name="path" /> is in an invalid format. </exception>
             /// <exception cref="DirectoryNotFoundException">The specified path is invalid, (for example, it is on an unmapped drive). </exception>
             /// <exception cref="IOException">An I/O error occurred while opening the file. </exception>
-            /// <exception cref="UnauthorizedAccessException"><paramref name="path" /> specified a file that is read-only.-or- This operation is not supported on the current platform.-or- <paramref name="path" /> specified a directory.-or- The caller does not have the required permission. -or-<paramref name="mode" /> is <see cref="F:System.IO.FileMode.Create" /> and the specified file is a hidden file.</exception>
+            /// <exception cref="UnauthorizedAccessException">
+            ///     <paramref name="path" /> specified a file that is read-only.-or- This
+            ///     operation is not supported on the current platform.-or- <paramref name="path" /> specified a directory.-or- The
+            ///     caller does not have the required permission. -or-<paramref name="mode" /> is
+            ///     <see cref="F:System.IO.FileMode.Create" /> and the specified file is a hidden file.
+            /// </exception>
             /// <exception cref="FileNotFoundException">The file specified in <paramref name="path" /> was not found. </exception>
             internal static bool ImagesEqual(string firstImagePath, Bitmap secondImage)
             {
                 Bitmap firstImage;
                 using (var stream = Open(firstImagePath, FileMode.Open))
                 {
-                    firstImage = (Bitmap)FromStream(stream);
+                    firstImage = (Bitmap) FromStream(stream);
                 }
                 return ImagesEqual(firstImage, secondImage);
             }
@@ -324,21 +390,19 @@ namespace WallpaperUtilities
             /// <param name="secondImage"></param>
             /// <returns></returns>
             /// <exception cref="Exception">The operation failed.</exception>
-            /// <exception cref="ArgumentOutOfRangeException"><paramref name="x" /> is less than 0, or greater than or equal to <see cref="P:System.Drawing.Image.Width" />. -or-<paramref name="y" /> is less than 0, or greater than or equal to <see cref="P:System.Drawing.Image.Height" />.</exception>
+            /// <exception cref="ArgumentOutOfRangeException">
+            ///     <paramref name="x" /> is less than 0, or greater than or equal to
+            ///     <see cref="P:System.Drawing.Image.Width" />. -or-<paramref name="y" /> is less than 0, or greater than or equal to
+            ///     <see cref="P:System.Drawing.Image.Height" />.
+            /// </exception>
             public static bool ImagesEqual(Bitmap firstImage, Bitmap secondImage)
             {
                 //Test to see if we have the same size of image
                 if (firstImage.Size != secondImage.Size)
-                {
                     return false;
-                }
                 for (var x = 0; x < firstImage.Width; x++)
-                {
-                    for (var y = 0; y < firstImage.Height; y++)
-                    {
-                        if (firstImage.GetPixel(x, y) != secondImage.GetPixel(x, y)) return false;
-                    }
-                }
+                for (var y = 0; y < firstImage.Height; y++)
+                    if (firstImage.GetPixel(x, y) != secondImage.GetPixel(x, y)) return false;
                 return true;
             }
         }

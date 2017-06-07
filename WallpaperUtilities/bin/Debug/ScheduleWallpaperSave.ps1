@@ -39,7 +39,7 @@ $task_name = "Save Spotlight Wallpapers"
 
 Unregister-ExistingTask($task_name)
 
-$action = New-ScheduledTaskAction -Execute "$(Resolve-Path './WallpaperUtilities.exe')" -Argument "-s $location -nm"
+$action = New-ScheduledTaskAction -Execute "$(Resolve-Path './WallpaperUtilities.exe')" -Argument "-s ${location} -nm"
 
 Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task_name -Description "Saves Spotlight Wallpapers"
 

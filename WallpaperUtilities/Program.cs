@@ -4,8 +4,14 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace WallpaperUtilities
 {
+    /// <summary>
+    /// </summary>
     public static class Program
     {
+        /// <summary>
+        /// </summary>
+        /// <param name="args"></param>
+        /// <exception cref="ArgumentException"></exception>
         public static void Main(string[] args)
         {
             if (args.Length > 0)
@@ -45,7 +51,9 @@ namespace WallpaperUtilities
                     case "--save":
                     case "-si":
                     case "--save-images":
-                        SpotlightUtilities.SaveSpotlightImages(secondArg);
+                        SpotlightUtilities.SaveSpotlightImages(secondArg,
+                            saveOnlyDesktopImages: args.Any(x => x == "--no-mobile" || x == "-nm"),
+                            saveOnlyMobileImages: args.Any(x => x == "--no-desktop" || x == "-nd"));
                         break;
                     case "-srw":
                     case "--set-random-wallpaper":

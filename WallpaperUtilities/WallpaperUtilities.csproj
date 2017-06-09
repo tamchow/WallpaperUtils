@@ -98,7 +98,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="notification.ps1" />
     <None Include="ScheduleWallpaperChange.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

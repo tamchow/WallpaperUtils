@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security;
 using static System.Console;
 using static System.Drawing.Image;
 using static System.IO.Directory;
@@ -79,7 +80,7 @@ namespace WallpaperUtilities
             _currentWallpaperPath = Wallpaper.GetCurrentDesktopWallpaperPath();
             using (var stream = Open(_currentWallpaperPath, FileMode.Open))
             {
-                _currentWallpaper = (Bitmap) FromStream(stream);
+                _currentWallpaper = (Bitmap)FromStream(stream);
             }
             if (string.IsNullOrWhiteSpace(savePath))
                 savePath = DefaultSavePath;
@@ -100,17 +101,16 @@ namespace WallpaperUtilities
         /// <param name="onlyName"></param>
         /// <param name="onlyLandscape"></param>
         /// <returns></returns>
-        private static List<string> GetFileList(string rootFolder, bool onlyName = false, bool onlyLandscape = true)
+        private static List<string> GetFileList(string rootFolder, bool onlyName = false)
         {
-            var savedFiles = new List<string>();
             if (Directory.Exists(rootFolder))
-                savedFiles.AddRange(from folder in EnumerateDirectories(rootFolder) //get daily images folders
-                    from subfolder in onlyLandscape
-                        ? new List<string> {$"{folder}\\{HorizontalCode}"} //get desktop folder
-                        : EnumerateDirectories(folder) //get desktop and mobile folders
-                    from file in EnumerateFiles(subfolder) //get all image file names in these folders
-                    select onlyName ? new FileInfo(file).Name : file);
-            return new HashSet<string>(savedFiles).ToList(); //eliminate duplicates
+            {
+                var rawFileList = EnumerateDirectories(rootFolder) // Daily image directories under base folder
+                    .SelectMany(EnumerateDirectories) // Size variant folders under daily image folders
+                    .SelectMany(EnumerateFiles); // Image files
+                return (onlyName ? rawFileList.Select(file => new FileInfo(file).Name) : rawFileList).ToList();
+            }
+            return new List<string>();
         }
 
         /// <exception cref="IOException">
@@ -141,7 +141,6 @@ namespace WallpaperUtilities
             bool saveOnlyDesktopImages = false, bool saveOnlyMobileImages = false)
         {
             var utilities = new SpotlightUtilities(savePath, threshold, saveOnlyDesktopImages, saveOnlyMobileImages);
-            var savedFiles = GetFileList(utilities._spotlightBase, true, false);
             CreateDirectory(utilities._spotlight);
             CreateDirectory(utilities._spotlightAssets);
             if (utilities._saveOnlyMobileImages)
@@ -154,11 +153,14 @@ namespace WallpaperUtilities
             else
                 CreateDirectory(utilities._spotlightVertical);
 
-            WriteLine($"Existing files:\n{string.Join("\n", savedFiles)}\n\n");
-
             //Clean up temporary files if present
             foreach (var file in EnumerateFiles(utilities._spotlightAssets))
                 File.Delete(file);
+
+            var existingFileNames = GetFileList(utilities._spotlightBase, true);
+            WriteLine($"Existing files:\n{string.Join("\n", existingFileNames)}\n");
+            WriteLine($"There were {existingFileNames.Count} files already present.\n");
+          
             var newFiles = 0;
             foreach (var file in EnumerateFiles(SpotlightLocal))
             {
@@ -173,7 +175,7 @@ namespace WallpaperUtilities
                     continue;
                 }
 
-                if (savedFiles.Any(savedFile => new FileInfo(savedFile).Name.Contains(fileInfo.Name)))
+                if (existingFileNames.Any(savedFileName => savedFileName.StartsWith(fileInfo.Name)))
                 {
                     WriteLine($"Existing File {fileInfo.Name} skipped.\n");
                     continue;
@@ -343,7 +345,7 @@ namespace WallpaperUtilities
                 Bitmap secondImage;
                 using (var stream = Open(secondImagePath, FileMode.Open))
                 {
-                    secondImage = (Bitmap) FromStream(stream);
+                    secondImage = (Bitmap)FromStream(stream);
                 }
                 return ImagesEqual(firstImagePath, secondImage);
             }
@@ -379,7 +381,7 @@ namespace WallpaperUtilities
                 Bitmap firstImage;
                 using (var stream = Open(firstImagePath, FileMode.Open))
                 {
-                    firstImage = (Bitmap) FromStream(stream);
+                    firstImage = (Bitmap)FromStream(stream);
                 }
                 return ImagesEqual(firstImage, secondImage);
             }
@@ -401,8 +403,8 @@ namespace WallpaperUtilities
                 if (firstImage.Size != secondImage.Size)
                     return false;
                 for (var x = 0; x < firstImage.Width; x++)
-                for (var y = 0; y < firstImage.Height; y++)
-                    if (firstImage.GetPixel(x, y) != secondImage.GetPixel(x, y)) return false;
+                    for (var y = 0; y < firstImage.Height; y++)
+                        if (firstImage.GetPixel(x, y) != secondImage.GetPixel(x, y)) return false;
                 return true;
             }
         }

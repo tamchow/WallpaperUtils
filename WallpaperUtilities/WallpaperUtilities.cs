@@ -138,7 +138,7 @@ namespace WallpaperUtilities
         /// </exception>
         /// <exception cref="Win32Exception">An error occurred when opening the associated file. </exception>
         /// <exception cref="FileNotFoundException">The PATH environment variable has a string containing quotes.</exception>
-        /// <exception cref="ObjectDisposedException">The process object has already been disposed. </exception>
+        /// <exception cref="ObjectDisposedException">The process object has already been disposed. </exception>                                                
         public static Tuple<string, bool> GetCurrentLockScreenWallpaperPath()
         {
             var pathWallpaper = "";
@@ -150,20 +150,21 @@ namespace WallpaperUtilities
                 if (regKey != null)
                 {
                     pathWallpaper = regKey.GetValue("LandscapeAssetPath").ToString();
-                    if (!IsNullOrWhiteSpace(pathWallpaper)) return new Tuple<string, bool>(pathWallpaper, false);
+                    if (!IsNullOrWhiteSpace(pathWallpaper)) return Tuple.Create(pathWallpaper, false);
                 }
             }
             Start("lsbg:");
             var destinationFolder = GetFolderPath(SpecialFolder.MyPictures);
-            Func<string, bool> filter = file =>
+
+            bool Filter(string file)
             {
                 var extension = GetExtension(file);
-                return extension != null &&
-                       extension.Equals(CompletedExtension, InvariantCultureIgnoreCase);
-            };
-            while (!EnumerateFiles(destinationFolder).Any(filter))
+                return extension != null && extension.Equals(CompletedExtension, InvariantCultureIgnoreCase);
+            }
+
+            while (!EnumerateFiles(destinationFolder).Any(Filter))
                 Sleep(WaitMilliseconds);
-            var sourceName = EnumerateFiles(destinationFolder).Where(filter).First();
+            var sourceName = EnumerateFiles(destinationFolder).Where(Filter).First();
             var newFileName = $"{NewGuid()}_{GetFileNameWithoutExtension(sourceName)}";
             pathWallpaper = Combine(destinationFolder, newFileName);
             File.Move(sourceName, newFileName);
@@ -171,9 +172,10 @@ namespace WallpaperUtilities
             ManualCopyFile(sourceName, pathWallpaper);
             File.Delete(sourceName);
 #endif
-            return new Tuple<string, bool>(pathWallpaper, true);
+            return Tuple.Create(pathWallpaper, true);
         }
 
+#if INDEPENDENT
         private static void ManualCopyFile(string sourceName, string destinationName)
         {
             destinationName = HandleFileNaming(sourceName, destinationName);
@@ -191,7 +193,7 @@ namespace WallpaperUtilities
             }
             //End typically useless reimplementation
         }
-
+#endif
         /// <summary>
         ///     Sets the lockscreen wallpaper to the image file denoted by the
         ///     parameter path.

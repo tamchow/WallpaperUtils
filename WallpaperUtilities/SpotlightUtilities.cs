@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Security;
 using static System.Console;
 using static System.Drawing.Image;
 using static System.IO.Directory;
@@ -99,7 +98,6 @@ namespace WallpaperUtilities
         /// </summary>
         /// <param name="rootFolder"></param>
         /// <param name="onlyName"></param>
-        /// <param name="onlyLandscape"></param>
         /// <returns></returns>
         private static List<string> GetFileList(string rootFolder, bool onlyName = false)
         {
@@ -397,7 +395,7 @@ namespace WallpaperUtilities
             ///     <see cref="P:System.Drawing.Image.Width" />. -or-<paramref name="y" /> is less than 0, or greater than or equal to
             ///     <see cref="P:System.Drawing.Image.Height" />.
             /// </exception>
-            public static bool ImagesEqual(Bitmap firstImage, Bitmap secondImage)
+            private static bool ImagesEqual(Bitmap firstImage, Bitmap secondImage)
             {
                 //Test to see if we have the same size of image
                 if (firstImage.Size != secondImage.Size)

@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security;
 using Microsoft.Win32;
 using static System.Console;
 using static System.Diagnostics.Process;
@@ -96,13 +97,10 @@ namespace WallpaperUtilities
         /// <exception cref="UnauthorizedAccessException">The user does not have the necessary registry rights.</exception>
         public static string GetCurrentDesktopWallpaperPath()
         {
-            var pathWallpaper = "";
             using (var regKey = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", false))
             {
-                if (regKey != null)
-                    pathWallpaper = regKey.GetValue("WallPaper").ToString();
+                return regKey?.GetValue("WallPaper").ToString() ?? "";
             }
-            return pathWallpaper;
         }
 
         /// <summary>
@@ -147,20 +145,13 @@ namespace WallpaperUtilities
                     Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Lock Screen\Creative",
                         false))
             {
-                if (regKey != null)
-                {
-                    pathWallpaper = regKey.GetValue("LandscapeAssetPath").ToString();
-                    if (!IsNullOrWhiteSpace(pathWallpaper)) return Tuple.Create(pathWallpaper, false);
-                }
+                pathWallpaper = regKey?.GetValue("LandscapeAssetPath").ToString();
+                if (!IsNullOrWhiteSpace(pathWallpaper)) return Tuple.Create(pathWallpaper, false);
             }
             Start("lsbg:");
             var destinationFolder = GetFolderPath(SpecialFolder.MyPictures);
 
-            bool Filter(string file)
-            {
-                var extension = GetExtension(file);
-                return extension != null && extension.Equals(CompletedExtension, InvariantCultureIgnoreCase);
-            }
+            bool Filter(string file) => GetExtension(file)?.Equals(CompletedExtension, InvariantCultureIgnoreCase) ?? false;
 
             while (!EnumerateFiles(destinationFolder).Any(Filter))
                 Sleep(WaitMilliseconds);
@@ -484,20 +475,12 @@ namespace WallpaperUtilities
                 Copy(path, newPath, true);
                 while (appDataDirectory.EnumerateFiles().All(file => file.FullName != newPath))
                     Sleep(WaitMilliseconds);
-                using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true))
+                using (var key = Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true) ?? throw new InvalidOperationException("Registry key  not found"))
                 {
-                    if (key != null)
-                    {
-                        var styleData = Styles[style];
-                        key.SetValue(@"WallpaperStyle", styleData.WallpaperStyle());
-                        key.SetValue(@"TileWallpaper", styleData.TileWallpaper());
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("Registry key  not found");
-                    }
+                    var styleData = Styles[style];
+                    key.SetValue(@"WallpaperStyle", styleData.WallpaperStyle());
+                    key.SetValue(@"TileWallpaper", styleData.TileWallpaper());
                 }
-
                 SystemParametersInfo(SpiSetdeskwallpaper,
                     0,
                     newPath,
@@ -577,7 +560,7 @@ namespace WallpaperUtilities
                     new NullReferenceException());
             if (Directory.Exists(destinationName))
                 destinationName = Combine(destinationName,
-                    $"({DateTime.Now.ToString("yyyy-MM-dd,hh.mm.ss,t,z")})_{GetFileName(sourceName)}" +
+                    $"({DateTime.Now:yyyy-MM-dd,hh.mm.ss,t,z})_{GetFileName(sourceName)}" +
                     (IsNullOrEmpty(GetExtension(sourceName)) ? ".jpg" : string.Empty));
             else
                 CreateDirectory(GetDirectoryName(destinationName) ?? GetDirectoryRoot(destinationName));
@@ -648,16 +631,16 @@ namespace WallpaperUtilities
         public static void Main(string[] args)
         {
             if (args.Length == 0 || !(args.Length > 0 &&
-                                      new List<string> {"-d", "--desktop", "-l", "--lock screen"}.Contains(args[0])))
+                                      new List<string> { "-d", "--desktop", "-l", "--lock screen" }.Contains(args[0])))
             {
-                var nArgs = new List<string> {"--desktop", args.Length > 0 ? args[0] : ""};
+                var nArgs = new List<string> { "--desktop", args.Length > 0 ? args[0] : "" };
                 if (args.Length > 1)
                     nArgs.Add(args[1]);
                 args = nArgs.ToArray();
             }
             else if (args.Length == 1)
             {
-                var nArgs = new List<string> {args[0], ""};
+                var nArgs = new List<string> { args[0], "" };
                 args = nArgs.ToArray();
             }
             if (args.Length >= 2)
@@ -667,7 +650,7 @@ namespace WallpaperUtilities
                 {
                     case "-d":
                     case "--desktop":
-                        SetDesktopWallpaper(args[1], args.Length > 2 ? (Style) int.Parse(args[2]) : Style.Stretched);
+                        SetDesktopWallpaper(args[1], args.Length > 2 ? (Style)int.Parse(args[2]) : Style.Stretched);
                         WriteLine($"Desktop Wallpaper was changed. {args[1]}");
                         break;
                     case "-l":
